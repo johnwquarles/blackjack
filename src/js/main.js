@@ -4,12 +4,19 @@ var game;
 
 startGame();
 
+// to start off the game, make a new game object (with attributes that will preserve the game's state, ie, who has what cards) and then
+// ask the API for a deck ID to assign to the game object's deck (we need to use it for subsequent calls to the API, when we ask it for cards from
+// our deck).
+// We can't do anything until we have that deck ID, but the program would happily continue on prior to actually loading the object that contains the
+// deck ID. So we need a way to make it wait until that object has successfully loaded-- we do so by making the next step in the program, which
+// is the dealer's initial turn, fire as part of the setDeckID function's callback function. That way it won't happen until it has the requisite data.
 function startGame() {
   game = new Game();
-  setDeckId();
+  setDeckId(dealerInitialTurn);
 }
 
-
+// setting up a game object to preserve the game's state. This is a constructor function that is invoked above via "game = new Game();" to
+// generate a game object with all of the attributes listed below.
 function Game() {
   this.deck_id = "";
   this.dealer_cards = [];
@@ -19,22 +26,21 @@ function Game() {
   this.dealerFirstTurn = true;
 }
 
-function gameLoop() {
-  dealerInitialTurn();
-}
-
-// set the deck_id by calling the API
-// and go into the main loop (needs to be in the success function here)
-// so that it starts *after* the deck ID has been retrieved and assigned.
-function setDeckId() {
+// set the the game object's deck_id by calling the API and looking at the deck_id attribute of the response it gives us.
+// After the data has loaded (and written to the game object), our callback function fires off, which we've set up to be whatever function we pass in.
+// We pass in dealerInitialTurn (line 15) so that the game starts.
+  
+function setDeckId(callback) {
   $.get(API_PROXY + API_URL + "/shuffle/?deck_count=6", function(obj){
     game.deck_id = obj.deck_id;
-    gameLoop();
+    callback();
   }, 'json');
 }
 
-// specify "player" or "dealer" and how many cards. Their array will be populated with the cards and the total updated (will make Aces worth
-// 1 instead of 11 if it will prevent busting.
+// specify "player" or "dealer" and how many cards. Their array will be populated with the cards (via array concatenation) 
+// and the total updated (will make Aces worth
+// 1 instead of 11 if it will prevent busting; see subsequent functions for details on how this happens.
+// http://deckofcardsapi.com/ shows what the response object looks like; check under "draw a card".
 function dealCards(towhom, num, callback) {
   var get_url = API_PROXY + API_URL + "/draw/" + game.deck_id + "/?count=" + num;
   $.get(get_url, function(obj){
@@ -50,9 +56,11 @@ function dealCards(towhom, num, callback) {
   }, 'json');
 }
 
-// enter "player" or "dealer" into updateTotal. It will sum up the total of the cards,
-// with aces in the back (so that it'll opt to become 1 to prevent busting) without modifying
-// the card order (for display purposes).
+// enter "player" or "dealer". It will sum up the total of the cards,
+// with aces moved to the back so that the computer can decide to count them as
+// 1 if it will prevent busting. The new total is written to the game object. This doesn't modify the original
+// card order; don't want to do that, because we want to keep the order for display purposes.
+// so doing .slice() on the card arrays will let us make the acesToBack-ed arrays from copies.
 function updateTotal(whom) {
   var cards = whom.toLowerCase() === "player" ? game.player_cards.slice() : game.dealer_cards.slice();
   var total =
@@ -70,6 +78,7 @@ function updateTotal(whom) {
 }
 
 // aces to back of array for summation purposes.
+// Look at all cards; ace? If so move it to the back. Not ace? Move it to the front.
 function acesToBack(arr) {
   var return_arr = [];
   arr.forEach(function(card) {
@@ -79,10 +88,14 @@ function acesToBack(arr) {
   return return_arr;
 }
 
+// First turn. Deal 2 cards to the dealer, and after the data is loaded, invoke dealerLoop as the callback function.
 function dealerInitialTurn() {
   dealCards("dealer", 2, dealerLoop);
 }
 
+// Tell player what the dealer's first card is (only on the first time, otherwise it's annoying).
+// Have the dealer keep hitting (by calling this function again) until he reaches 17 or more; once he does,
+// see where he/she stands.
 function dealerLoop() {
   if (game.dealerFirstTurn){
     alert("Dealer's first card : " + game.dealer_cards[0].value + " of " + game.dealer_cards[0].suit);
@@ -95,6 +108,8 @@ function dealerLoop() {
   }
 }
 
+// turn the card array into something we can display (by during each card object into a string including its value and suit).
+// Then display the appropriate message.
 function dealerTurnResult() {
   var dealer_hand = game.dealer_cards.map(function(card) {
     return " " + card.value + " of " + card.suit;
@@ -112,6 +127,7 @@ function dealerTurnResult() {
   }
 }
 
+// p. much the same thing for the player, except it's up to him/her whether or not to hit.
 function playerInitialTurn() {
   dealCards("player", 2, playerLoop);
 }
@@ -136,7 +152,8 @@ function playerLoop() {
     }
   }
 }
-
+// if the neither the dealer nor the player won outright or busted during their respective turns, we need to compare the totals
+// to see who won.
 function finalReckoning() {
   alert("Dealer's total: " + game.dealertotal + "\n\nYour total: " + game.playertotal);
   if (game.playertotal > game.dealertotal) {
@@ -150,7 +167,7 @@ function finalReckoning() {
 }
 
 function newGamePrompt() {
-  var choice = confirm("new game?");
+  var choice = confirm("New game?");
   if (choice === true) {
     startGame();
   }
