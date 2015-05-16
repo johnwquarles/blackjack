@@ -8,9 +8,13 @@ var $PLAYERCONTROLS = $('.player-controls');
 var $DEALERMSG = $('.dealer-msg');
 var $PLAYERMSG = $('.player-msg');
 var $PLAYERWRAPPER = $('.player-wrapper');
-var DEALER_FLIP_DELAY = 1200;
+var $MSGAREA = $('.msg-area')
+
+// time between dealer's individual turns
 var DEALER_TURN_DELAY = 1500;
-var PLAYER_FLIP_TIME = 400;
+
+// time between each individual card flip once flipping has begun
+var CASCADE_FLIP_TIME = 400;
 
 $PLAYERWRAPPER.on('click', '.hit-btn', function(event) {
   event.preventDefault();
@@ -36,8 +40,9 @@ function startGame() {
   $PLAYERCONTROLS.empty();
   $DEALERHAND.empty();
   $PLAYERHAND.empty();
-  $PLAYERMSG.empty();
-  $DEALERMSG.empty();
+  //$PLAYERMSG.empty();
+  //$DEALERMSG.empty();
+  $MSGAREA.empty();
   setDeckId(playerInitialTurn);
 }
 
@@ -141,7 +146,7 @@ function dealerLoop() {
 // turn the card array into something we can display (by during each card object into a string including its value and suit).
 // Then display the appropriate message.
 function make$P(string) {
-  return $("<p>" + string + "</p>")
+  return ($("<p>" + string + "</p>").addClass("animated fadeIn"));
 }
 
 function dealerTurnResult() {
@@ -151,14 +156,14 @@ function dealerTurnResult() {
   if (game.dealertotal === 21) {
     // alert("Dealer's hand: " + dealer_hand + "\n\nBlackjack! Dealer wins!");
     flipDealerCards()
-    $DEALERHAND.append(make$P("Blackjack!")).append(make$P(" Dealer wins!"))
+    $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash")).append(make$P(" Dealer wins!").addClass("lose"))
     appendNewGameButton();
     // newGamePrompt();
   }
   else if (game.dealertotal > 21) {
     // alert("Dealer's hand: " + dealer_hand + "\n\nDealer busts! So you win!");
     flipDealerCards()
-    $DEALERHAND.append(make$P("Dealer busts!")).append(make$P(" You win!"))
+    $MSGAREA.append(make$P("Dealer busts!")).append(make$P(" You win!").addClass("win"))
     appendNewGameButton();
     // ---> flip the dealer's cards over now <---
     // newGamePrompt();
@@ -178,16 +183,16 @@ function playerLoop() {
   //   return " " + card.value + " of " + card.suit;
   // })
   // alert("Your hand: " + player_hand);
-  setTimeout(function() {flipPlayerCards();}, PLAYER_FLIP_TIME);
+  flipPlayerCards();
   if (game.playertotal === 21) {
     // alert("blackjack! You win!");
     // newGamePrompt();
-    $PLAYERHAND.append(make$P("Blackjack! You win!"));
+    $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash")).append(make$P(" You win!").addClass("win"));
     appendNewGameButton();
   } else if (game.playertotal > 21) {
     // alert("You busted! You lose!");
     // newGamePrompt();
-    $PLAYERHAND.append(make$P("You busted! You lose!"));
+    $MSGAREA.append(make$P("You busted!").removeClass("fadeIn").addClass("swing")).append(make$P(" You lose!").addClass("lose"));
     appendNewGameButton();
   } else {
       appendControlsAndWait();
@@ -203,22 +208,21 @@ function playerLoop() {
 // to see who won.
 function finalReckoning() {
   // alert("Dealer's total: " + game.dealertotal + "\n\nYour total: " + game.playertotal);
-  $PLAYERHAND.append(make$P("Your total: " + game.playertotal));
-  $DEALERHAND.append(make$P("Dealer's total: " + game.dealertotal));
+  $MSGAREA.append(make$P("Your total: " + game.playertotal + "&nbsp; &nbsp; Dealer's total: " + game.dealertotal));
   if (game.playertotal > game.dealertotal) {
     // alert("You win!");
     flipDealerCards()
-    $PLAYERHAND.append(make$P("You win!"));
+    $MSGAREA.append(make$P("You win!").addClass("win"));
     appendNewGameButton();
   } else if (game.playertotal === game.dealertotal) {
     // alert("OMFG it's a tie!");
     flipDealerCards()
-    $PLAYERHAND.append(make$P("OMFG it's a tie!"));
+    $MSGAREA.append(make$P("Tie! You lose!").addClass("lose"));
     appendNewGameButton();
   } else {
     // alert("You lose!");
     flipDealerCards()
-    $PLAYERHAND.append(make$P("You lose!"));
+    $MSGAREA.append(make$P("You lose!").addClass("lose"));
     appendNewGameButton();
   }
 }
@@ -282,7 +286,7 @@ function appendTotal(whom) {
 function appendControlsAndWait() {
   $PLAYERCONTROLS.empty();
   var $hit = $("<button class='hit-btn'>Hit</button>");
-  var $stick = $("<button class='stick-btn'>Stick</button>");
+  var $stick = $("<button class='stick-btn'>Stand</button>");
   $PLAYERCONTROLS.append($hit).append($stick);
 }
 
@@ -294,18 +298,30 @@ function appendNewGameButton() {
 
 function flipDealerCards() {
   var img_arr = [].slice.call(document.querySelectorAll(".dealer-hand img"));
-  img_arr.forEach(function(img) {
-    if (img.getAttribute("front_url")) {
-      img.src = img.getAttribute("front_url");
+  var i = 0;
+  var length = img_arr.length;
+  function delayedFlip() {
+    if (i < length) {
+      if (img_arr[i].getAttribute("front_url")) {
+        img_arr[i].src = img_arr[i].getAttribute("front_url");
+      }
+      i += 1;
+      setTimeout(function(){delayedFlip()}, CASCADE_FLIP_TIME);
     }
-  })
+  }
+  delayedFlip();
 }
 
 function flipPlayerCards() {
   var img_arr = [].slice.call(document.querySelectorAll(".player-hand img"));
-  img_arr.forEach(function(img) {
-    if (img.getAttribute("front_url")) {
-      img.src = img.getAttribute("front_url");
+  var i = 0;
+  var length = img_arr.length;
+  function delayedFlip() {
+    if (i < length) {
+        img_arr[i].src = img_arr[i].getAttribute("front_url");
     }
-  })
+    i += 1;
+    setTimeout(function(){delayedFlip()}, CASCADE_FLIP_TIME);
+  }
+  delayedFlip();
 }
