@@ -1,6 +1,27 @@
 var API_URL = "http://deckofcardsapi.com/api";
 var API_PROXY = "https://jsonp.afeld.me/?url=";
 var game;
+var CARD_BACK_URL = "/images/back.png";
+var $DEALERHAND = $('.dealer-hand');
+var $PLAYERHAND = $('.player-hand');
+var $PLAYERCONTROLS = $('.player-controls');
+var $DEALERMSG = $('.dealer-msg');
+var $PLAYERMSG = $('.player-msg');
+var $PLAYERWRAPPER = $('.player-wrapper');
+var DEALER_FLIP_DELAY = 1200;
+var DEALER_TURN_DELAY = 1500;
+var PLAYER_FLIP_TIME = 400;
+
+$PLAYERWRAPPER.on('click', '.hit-btn', function(event) {
+  event.preventDefault();
+  dealCards("player", 1, playerLoop);
+}).on('click', '.stick-btn', function(event) {
+  event.preventDefault();
+  dealerInitialTurn();
+}).on('click', '.newgame', function(event) {
+  event.preventDefault();
+  startGame();
+})
 
 startGame();
 
@@ -12,7 +33,12 @@ startGame();
 // is the dealer's initial turn, fire as part of the setDeckID function's callback function. That way it won't happen until it has the requisite data.
 function startGame() {
   game = new Game();
-  setDeckId(dealerInitialTurn);
+  $PLAYERCONTROLS.empty();
+  $DEALERHAND.empty();
+  $PLAYERHAND.empty();
+  $PLAYERMSG.empty();
+  $DEALERMSG.empty();
+  setDeckId(playerInitialTurn);
 }
 
 // setting up a game object to preserve the game's state. This is a constructor function that is invoked above via "game = new Game();" to
@@ -23,7 +49,7 @@ function Game() {
   this.player_cards = [];
   this.playertotal = 0;
   this.dealertotal = 0;
-  this.dealerFirstTurn = true;
+  // this.dealerFirstTurn = true;
 }
 
 // set the the game object's deck_id by calling the API and looking at the deck_id attribute of the response it gives us.
@@ -46,11 +72,15 @@ function dealCards(towhom, num, callback) {
   $.get(get_url, function(obj){
     if (towhom.toLowerCase() === "player") {
       game.player_cards = game.player_cards.concat(obj.cards);
+      insertPlayerCards(obj.cards);
       updateTotal("player");
+      //appendTotal("player");
     }
     else {
       game.dealer_cards = game.dealer_cards.concat(obj.cards);
+      insertDealerCards(obj.cards);
       updateTotal("dealer");
+      //appendTotal("dealer");
     }
     callback();
   }, 'json');
@@ -97,33 +127,44 @@ function dealerInitialTurn() {
 // Have the dealer keep hitting (by calling this function again) until he reaches 17 or more; once he does,
 // see where he/she stands.
 function dealerLoop() {
-  if (game.dealerFirstTurn){
-    alert("Dealer's first card : " + game.dealer_cards[0].value + " of " + game.dealer_cards[0].suit);
-    game.dealerFirstTurn = false;
-  }
+  // if (game.dealerFirstTurn){
+    // alert("Dealer's first card : " + game.dealer_cards[0].value + " of " + game.dealer_cards[0].suit);
+    // game.dealerFirstTurn = false;
+  // }
   if (game.dealertotal < 17) {
-    dealCards("dealer", 1, dealerLoop);
+    setTimeout(function() {dealCards("dealer", 1, dealerLoop)}, DEALER_TURN_DELAY);
   } else {
-    dealerTurnResult();
+    setTimeout(function() {dealerTurnResult()}, DEALER_TURN_DELAY);
   }
 }
 
 // turn the card array into something we can display (by during each card object into a string including its value and suit).
 // Then display the appropriate message.
+function make$P(string) {
+  return $("<p>" + string + "</p>")
+}
+
 function dealerTurnResult() {
   var dealer_hand = game.dealer_cards.map(function(card) {
     return " " + card.value + " of " + card.suit;
   })
   if (game.dealertotal === 21) {
-    alert("Dealer's hand: " + dealer_hand + "\n\nBlackjack! Dealer wins!");
-    newGamePrompt();
+    // alert("Dealer's hand: " + dealer_hand + "\n\nBlackjack! Dealer wins!");
+    flipDealerCards()
+    $DEALERHAND.append(make$P("Blackjack!")).append(make$P(" Dealer wins!"))
+    appendNewGameButton();
+    // newGamePrompt();
   }
   else if (game.dealertotal > 21) {
-    alert("Dealer's hand: " + dealer_hand + "\n\nDealer busts! So you win!");
-    newGamePrompt();
+    // alert("Dealer's hand: " + dealer_hand + "\n\nDealer busts! So you win!");
+    flipDealerCards()
+    $DEALERHAND.append(make$P("Dealer busts!")).append(make$P(" You win!"))
+    appendNewGameButton();
+    // ---> flip the dealer's cards over now <---
+    // newGamePrompt();
   } else {
-    alert("player's turn")
-    playerInitialTurn();
+    // alert("player's turn")
+    finalReckoning();
   }
 }
 
@@ -133,37 +174,53 @@ function playerInitialTurn() {
 }
 
 function playerLoop() {
-  var player_hand = game.player_cards.map(function(card) {
-    return " " + card.value + " of " + card.suit;
-  })
-  alert("Your hand: " + player_hand);
+  // var player_hand = game.player_cards.map(function(card) {
+  //   return " " + card.value + " of " + card.suit;
+  // })
+  // alert("Your hand: " + player_hand);
+  setTimeout(function() {flipPlayerCards();}, PLAYER_FLIP_TIME);
   if (game.playertotal === 21) {
-    alert("blackjack! You win!");
-    newGamePrompt();
+    // alert("blackjack! You win!");
+    // newGamePrompt();
+    $PLAYERHAND.append(make$P("Blackjack! You win!"));
+    appendNewGameButton();
   } else if (game.playertotal > 21) {
-    alert("You busted! You lose!");
-    newGamePrompt();
+    // alert("You busted! You lose!");
+    // newGamePrompt();
+    $PLAYERHAND.append(make$P("You busted! You lose!"));
+    appendNewGameButton();
   } else {
-    var choice = confirm("Your total: " + game.playertotal + ". Hit?");
-    if (choice === true) {
-      dealCards("player", 1, playerLoop);
-    } else {
-      finalReckoning();
-    }
+      appendControlsAndWait();
+//    var choice = confirm("Your total: " + game.playertotal + ". Hit?");
+//    if (choice === true) {
+//      dealCards("player", 1, playerLoop);
+//    } else {
+//      finalReckoning();
+//    }
   }
 }
 // if the neither the dealer nor the player won outright or busted during their respective turns, we need to compare the totals
 // to see who won.
 function finalReckoning() {
-  alert("Dealer's total: " + game.dealertotal + "\n\nYour total: " + game.playertotal);
+  // alert("Dealer's total: " + game.dealertotal + "\n\nYour total: " + game.playertotal);
+  $PLAYERHAND.append(make$P("Your total: " + game.playertotal));
+  $DEALERHAND.append(make$P("Dealer's total: " + game.dealertotal));
   if (game.playertotal > game.dealertotal) {
-    alert("You win!");
+    // alert("You win!");
+    flipDealerCards()
+    $PLAYERHAND.append(make$P("You win!"));
+    appendNewGameButton();
   } else if (game.playertotal === game.dealertotal) {
-    alert("OMFG it's a tie!");
+    // alert("OMFG it's a tie!");
+    flipDealerCards()
+    $PLAYERHAND.append(make$P("OMFG it's a tie!"));
+    appendNewGameButton();
   } else {
-    alert("You lose!");
+    // alert("You lose!");
+    flipDealerCards()
+    $PLAYERHAND.append(make$P("You lose!"));
+    appendNewGameButton();
   }
-  newGamePrompt();
 }
 
 function newGamePrompt() {
@@ -171,4 +228,84 @@ function newGamePrompt() {
   if (choice === true) {
     startGame();
   }
+}
+
+function insertPlayerCards(card_arr) {
+  card_arr.forEach(function(card_obj) {
+    var $card = generateBack$IMG(card_obj);
+    //var $card = generateFront$IMG(card_obj);
+    $PLAYERHAND.append($card);
+  })
+}
+
+function generateFront$IMG(card_obj) {
+  if (card_obj.value === "ACE" && card_obj.suit === "DIAMONDS"){
+    card_obj.image = "/images/AceOfDiamonds.png";
+  }
+  var $card = $("<img src='" + card_obj.image + "'>");
+  return $card;
+}
+
+function generateBack$IMG(card_obj) {
+  if (card_obj.value === "ACE" && card_obj.suit === "DIAMONDS"){
+    card_obj.image = "/images/AceOfDiamonds.png";
+  }
+  var $card = $("<img src='" + CARD_BACK_URL + "' front_url = '" + card_obj.image + "'>");
+  return $card;
+}
+
+function insertDealerCards(card_arr) {
+  card_arr.forEach(function(card_obj, i) {
+    if ($DEALERHAND.is(':empty') && i === 0) {
+      var $card = generateFront$IMG(card_obj);
+      $DEALERHAND.append($card);
+    } else {
+      var $card = generateBack$IMG(card_obj);
+      $DEALERHAND.append($card);
+    }
+  })
+}
+
+function appendTotal(whom) {
+  var total = whom === "player" ?
+    game.playertotal:
+    game.dealertotal;
+  var $msg_area = whom === "player" ?
+    $PLAYERMSG:
+    $DEALERMSG;
+  var $total = $("<p>Total: " + total + "</p>");
+  $msg_area.empty();
+  $msg_area.append($total);
+}
+
+// append controls and await player decision
+function appendControlsAndWait() {
+  $PLAYERCONTROLS.empty();
+  var $hit = $("<button class='hit-btn'>Hit</button>");
+  var $stick = $("<button class='stick-btn'>Stick</button>");
+  $PLAYERCONTROLS.append($hit).append($stick);
+}
+
+function appendNewGameButton() {
+  $PLAYERCONTROLS.empty();
+  var $newgame = $("<button class='newgame'>New Game</button>");
+  $PLAYERCONTROLS.append($newgame);
+}
+
+function flipDealerCards() {
+  var img_arr = [].slice.call(document.querySelectorAll(".dealer-hand img"));
+  img_arr.forEach(function(img) {
+    if (img.getAttribute("front_url")) {
+      img.src = img.getAttribute("front_url");
+    }
+  })
+}
+
+function flipPlayerCards() {
+  var img_arr = [].slice.call(document.querySelectorAll(".player-hand img"));
+  img_arr.forEach(function(img) {
+    if (img.getAttribute("front_url")) {
+      img.src = img.getAttribute("front_url");
+    }
+  })
 }

@@ -7,12 +7,23 @@ html
     title Blackjack
     link(rel='stylesheet', href='lib/build.css')
     link(rel='stylesheet', href='css/main.css')
+    link(href='http://fonts.googleapis.com/css?family=Copse|Damion' rel='stylesheet' type='text/css')
   body
     .container
-      h1 Blackjack
-      h2 this is blackjack
-      h3 ok
-
+      .header-container
+        h1 Blackjack
+      .game-table
+        .dealer-wrapper
+          .dealer-msg
+          .dealer-hand
+        .dealer-text
+          h2 Dealer's hand
+        .player-text
+          h2 Player's hand
+        .player-wrapper
+          .player-msg
+          .player-hand
+          .player-controls
 
 
     script(src='lib/build.js')

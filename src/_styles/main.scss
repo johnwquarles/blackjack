@@ -1,3 +1,149 @@
+body {
+  background-image: url("/images/bg.jpg");
+}
+
 h1 {
-  background-color: red;
+  font-size: 120px;
+  font-family: 'Damion', cursive;
+  color: white;
+  margin-bottom: -120px;
+}
+
+.container {
+  perspective: 1200px;
+}
+
+h2 {
+  color: white;
+  background-image: url('/images/wood.jpg');
+  display: inline-block;
+  font-family: 'Damion', cursive;
+  padding: 6px 12px;
+  border: 2px solid rgb(51, 0, 0);
+  font-size: 25px;
+  border-radius: 4px;
+}
+
+.dealer-text {
+  transform: rotateX(180deg) rotateY(180deg);
+}
+
+.game-table {
+  transform:rotateX(40deg);
+  background-image: url("/images/greenfelt.jpg");
+  background-repeat: repeat;
+  padding: 100px;
+  border-radius: 0 0 100% 100%;
+  border: 20px solid rgb(51, 0, 0);
+}
+
+.header-container, .dealer-text, .player-text, .player-controls {
+  text-align: center;
+}
+
+.dealer-wrapper, .player-wrapper {
+  background-color: rgba(0, 0, 0, 0);
+  border: 5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  min-height: 180px;
+  padding: 20px;
+  text-align: center;
+}
+
+.player-wrapper {
+  min-height: 250px;
+  border-radius: 0 0 100% 100%;
+}
+
+.dealer-hand img, .player-hand img {
+  width: 113px;
+  height: 157px;
+}
+
+.dealer-hand img:nth-child(n+2), .player-hand img:nth-child(n+2) {
+  margin-left: -95px;
+}
+
+.dealer-hand p, .player-hand p {
+  color: red;
+  font-size: 30px;
+  margin: 20px;
+}
+
+.player-hand img {
+  -webkit-box-shadow: -12px 0px 43px -13px rgba(0,0,0,0.75);
+  -moz-box-shadow: -12px 0px 43px -13px rgba(0,0,0,0.75);
+  box-shadow: -12px 0px 43px -13px rgba(0,0,0,0.75);
+}
+
+button {
+  margin: 15px 5px 0;
+  font-family: 'Copse', serif;
+  font-size: 30px;
+  padding: 7px 25px;
+  color: white;
+  background-image: url('/images/wood.jpg');
+  border: 0;
+  border: 2px solid rgb(51, 0, 0);
+  border-radius: 4px;
+}
+
+.hit-btn {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-transition-duration: 0.5s;
+  transition-duration: 0.5s;
+}
+
+.hit-btn:hover {
+  -webkit-transform: scale(1.2);
+  transform: scale(1.2);
+  -webkit-transition-timing-function: cubic-bezier(0.47, 2.02, 0.31, -0.36);
+  transition-timing-function: cubic-bezier(0.47, 2.02, 0.31, -0.36);
+}
+
+.stick-btn {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-transition-duration: 0.5s;
+  transition-duration: 0.5s;
+}
+
+.stick-btn:hover {
+  -webkit-transform: scale(0.8);
+  transform: scale(0.8);
+  -webkit-transition-timing-function: cubic-bezier(0.47, 2.02, 0.31, -0.36);
+  transition-timing-function: cubic-bezier(0.47, 2.02, 0.31, -0.36);
+}
+
+.newgame {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-transition-duration: 0.5s;
+  transition-duration: 0.5s;
+}
+
+.newgame:hover {
+  -webkit-transform: scale(1.2);
+  transform: scale(1.2);
+  -webkit-transition-timing-function: cubic-bezier(0.47, 2.02, 0.31, -0.36);
+  transition-timing-function: cubic-bezier(0.47, 2.02, 0.31, -0.36);
 }
