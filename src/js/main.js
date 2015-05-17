@@ -150,7 +150,6 @@ function make$P(string) {
 
 function dealerTurnResult() {
   if (game.dealertotal === 21 && game.dealer_cards.length === 2 && game.playerblackjack === false) {
-    //flipDealerCards();
     $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash"));
     setTimeout(function(){
       $MSGAREA.append(make$P(" Dealer wins!").addClass("lose"))
@@ -159,7 +158,6 @@ function dealerTurnResult() {
     appendNewGameButton();
   }
   else if (game.dealertotal === 21 && game.dealer_cards.length === 2 && game.playerblackjack === true) {
-    //flipDealerCards();
     $MSGAREA.append(make$P("Double-blackjack!").removeClass("fadeIn").addClass("flash"));
     setTimeout(function(){
       $MSGAREA.append(make$P("Push!"));
@@ -168,7 +166,6 @@ function dealerTurnResult() {
     appendNewGameButton();
   }
   else if (game.playerblackjack === true) {
-    //flipDealerCards();
     $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash"));
     setTimeout(function(){
       $MSGAREA.append(make$P(" You win!").addClass("win"));
@@ -177,7 +174,6 @@ function dealerTurnResult() {
     appendNewGameButton();
   }
   else if (game.dealertotal > 21) {
-    //flipDealerCards();
     $MSGAREA.append(make$P("Dealer busts!"))
     setTimeout(function() {
       $MSGAREA.append(make$P(" You win!").addClass("win"));
@@ -189,7 +185,6 @@ function dealerTurnResult() {
   }
 }
 
-// p. much the same thing for the player, except it's up to him/her whether or not to hit.
 function playerInitialTurn() {
   dealCards("player", 2, playerLoop);
 }
@@ -199,16 +194,8 @@ function playerLoop() {
   flipPlayerCards();
   if (game.playertotal === 21 && game.playerturn === 1) {
     game.playerblackjack = true;
-    //$MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash")).append(make$P(" You win!").addClass("win"));
-    //appendNewGameButton();
     appendControlsAndWait();
   } else {
-  // } else if (game.playertotal > 21) {
-  //   $PLAYERCONTROLS.empty();
-  //   gameIsOverSoFlipAllCards();
-  //   $MSGAREA.append(make$P("You busted!").removeClass("fadeIn").addClass("swing")).append(make$P(" You lose!").addClass("lose"));
-  //   appendNewGameButton();
-  // } else {
     appendControlsAndWait();
   }
 }
@@ -228,20 +215,15 @@ function finalReckoning() {
   $MSGAREA.append(make$P("Your total: " + game.playertotal).addClass("nomargin"));
   
   setTimeout(function(){$MSGAREA.append(make$P("Dealer's total: " + game.dealertotal).addClass("nomargin"))}, MSG_STAGGER);
-  //$MSGAREA.append(make$P("&nbsp; &nbsp; Dealer's total: " + game.dealertotal).addClass("inline").addClass("hidden"));
-  //setTimeout(function(){$(".msg-area p:last-child").removeClass("hidden");}, MSG_STAGGER);
   if (game.playertotal > game.dealertotal) {
-    //flipDealerCards()
     setTimeout(function() {$MSGAREA.append(make$P("You win!").addClass("win").addClass("nomargin"));}, 2*MSG_STAGGER);
     appendNewGameButton();
     gameIsOverSoFlipAllCards();
   } else if (game.playertotal === game.dealertotal) {
-    //flipDealerCards()
     setTimeout(function(){$MSGAREA.append(make$P("Push!").addClass("nomargin"));}, 2*MSG_STAGGER);
     gameIsOverSoFlipAllCards();
     appendNewGameButton();
   } else {
-    //flipDealerCards()
     setTimeout(function(){$MSGAREA.append(make$P("You lose!").addClass("lose").addClass("nomargin"));}, 2*MSG_STAGGER);
     gameIsOverSoFlipAllCards();
     appendNewGameButton();
@@ -306,7 +288,7 @@ function flipDealerCards() {
   var length = img_arr.length;
   function delayedFlip() {
 
-    // This code to have all of dealer's cards flip at once upon a game over.
+    // This code will have all of dealer's cards flip at once upon a game over.
 
     // img_arr.forEach(function(img) {
     //   if (img.getAttribute("front_url")) {
@@ -314,8 +296,8 @@ function flipDealerCards() {
     //   }
     // })
 
-    // uncomment below to make the dealer's cards all flip in a cascade
-    // instead of all at once when the game ends (uncomment the above part too)
+    // code below will make the dealer's cards all flip in a cascade
+    // instead of all at once when the game ends.
 
     if (i < length) {
       if (img_arr[i].getAttribute("front_url")) {
@@ -328,9 +310,11 @@ function flipDealerCards() {
   setTimeout(function(){delayedFlip();}, DEALER_CASCADE_FLIP_TIME);
 }
 
+// Changed this up such that the game won't display all the "hey you busted" graphics until the last card has been flipped.
+// Also had to use closure to ensure that the timeouts actually flip the card at index i according to what i was
+// when the timeout was created (this is actually exactly like what Crockford talked about here:
+// http://qdevdive.blogspot.com/2015/04/crockfords-concoction.html
 function flipPlayerCards() {
-  // if the player busts, don't want to spend any time waiting
-  // to flip the card that led to the bust
   var img_arr = [].slice.call(document.querySelectorAll(".player-hand img"));
   var i = 0;
   var length = img_arr.length;
