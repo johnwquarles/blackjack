@@ -13,12 +13,15 @@ var cardflip_events = [];
 var MSG_STAGGER = 600;
 
 // time between dealer's card flips upon a game over.
-var DEALER_CASCADE_FLIP_TIME = 180;
+var DEALER_CASCADE_FLIP_TIME = 120;
 
 // time between dealer's individual turns
 var DEALER_TURN_DELAY = 1500;
 
-// time between each individual card flip once flipping has begun
+// time between each individual card flip
+// for the player's cards after each new card added (2 in the beginning)
+// and for the flip of the dealer's first card.
+// (which is currently flipped after the dealer's *second* card is shown.
 var CASCADE_FLIP_TIME = 400;
 
 $PLAYERWRAPPER.on('click', '.hit-btn', function(event) {
@@ -255,12 +258,10 @@ function generateBack$IMG(card_obj) {
 
 function insertDealerCards(card_arr) {
   card_arr.forEach(function(card_obj, i) {
-    if ($DEALERHAND.is(':empty') && i === 0) {
-      var $card = generateFront$IMG(card_obj);
-      $DEALERHAND.append($card);
-    } else {
-      var $card = generateBack$IMG(card_obj);
-      $DEALERHAND.append($card);
+    var $card = generateBack$IMG(card_obj);
+    $DEALERHAND.append($card);
+    if ($DEALERHAND.children().length === 2) {
+      setTimeout(function(){$DEALERHAND.children()[0].src = $DEALERHAND.children()[0].getAttribute("front_url");}, CASCADE_FLIP_TIME)
     }
   })
 }
@@ -284,6 +285,7 @@ function appendNewGameButton() {
 
 function flipDealerCards() {
   var img_arr = [].slice.call(document.querySelectorAll(".dealer-hand img"));
+  // don't waste time checking the first card; it's already flipped for sure.
   var i = 1;
   var length = img_arr.length;
   function delayedFlip() {
@@ -300,9 +302,11 @@ function flipDealerCards() {
     // instead of all at once when the game ends.
 
     if (i < length) {
-      if (img_arr[i].getAttribute("front_url")) {
+      //don't need the below check (if statement), as we're starting from the second card,
+      // which has defintely not been flipped.
+      //if (img_arr[i].getAttribute("front_url") !== img_arr[i].getAttribute("src")) {
         img_arr[i].src = img_arr[i].getAttribute("front_url");
-      }
+      //}
       i += 1;
       setTimeout(function(){delayedFlip()}, DEALER_CASCADE_FLIP_TIME);
     }
