@@ -1,7 +1,7 @@
 var API_URL = "http://deckofcardsapi.com/api";
 var API_PROXY = "https://jsonp.afeld.me/?url=";
 var game;
-var CARD_BACK_URL = "/images/back.png";
+var CARD_BACK_URL = "images/back.png";
 var $DEALERHAND = $('.dealer-hand');
 var $PLAYERHAND = $('.player-hand');
 var $PLAYERCONTROLS = $('.player-controls');
@@ -9,6 +9,11 @@ var $DEALERMSG = $('.dealer-msg');
 var $PLAYERMSG = $('.player-msg');
 var $PLAYERWRAPPER = $('.player-wrapper');
 var $MSGAREA = $('.msg-area')
+var cardflip_events = [];
+var MSG_STAGGER = 600;
+
+// time between dealer's card flips upon a game over.
+var DEALER_CASCADE_FLIP_TIME = 180;
 
 // time between dealer's individual turns
 var DEALER_TURN_DELAY = 1500;
@@ -21,9 +26,11 @@ $PLAYERWRAPPER.on('click', '.hit-btn', function(event) {
   dealCards("player", 1, playerLoop);
 }).on('click', '.stick-btn', function(event) {
   event.preventDefault();
+  $PLAYERCONTROLS.empty();
   dealerInitialTurn();
 }).on('click', '.newgame', function(event) {
   event.preventDefault();
+  $PLAYERCONTROLS.empty();
   startGame();
 })
 
@@ -40,8 +47,6 @@ function startGame() {
   $PLAYERCONTROLS.empty();
   $DEALERHAND.empty();
   $PLAYERHAND.empty();
-  //$PLAYERMSG.empty();
-  //$DEALERMSG.empty();
   $MSGAREA.empty();
   setDeckId(playerInitialTurn);
 }
@@ -54,13 +59,14 @@ function Game() {
   this.player_cards = [];
   this.playertotal = 0;
   this.dealertotal = 0;
-  // this.dealerFirstTurn = true;
+  this.playerturn = 0;
+  this.playerblackjack = false;
 }
 
 // set the the game object's deck_id by calling the API and looking at the deck_id attribute of the response it gives us.
 // After the data has loaded (and written to the game object), our callback function fires off, which we've set up to be whatever function we pass in.
-// We pass in dealerInitialTurn (line 15) so that the game starts.
-  
+// We pass in playerInitialTurn (line 44) so that the game starts.
+
 function setDeckId(callback) {
   $.get(API_PROXY + API_URL + "/shuffle/?deck_count=6", function(obj){
     game.deck_id = obj.deck_id;
@@ -68,7 +74,7 @@ function setDeckId(callback) {
   }, 'json');
 }
 
-// specify "player" or "dealer" and how many cards. Their array will be populated with the cards (via array concatenation) 
+// specify "player" or "dealer" and how many cards. Their array will be populated with the cards (via array concatenation)
 // and the total updated (will make Aces worth
 // 1 instead of 11 if it will prevent busting; see subsequent functions for details on how this happens.
 // http://deckofcardsapi.com/ shows what the response object looks like; check under "draw a card".
@@ -79,13 +85,11 @@ function dealCards(towhom, num, callback) {
       game.player_cards = game.player_cards.concat(obj.cards);
       insertPlayerCards(obj.cards);
       updateTotal("player");
-      //appendTotal("player");
     }
     else {
       game.dealer_cards = game.dealer_cards.concat(obj.cards);
       insertDealerCards(obj.cards);
       updateTotal("dealer");
-      //appendTotal("dealer");
     }
     callback();
   }, 'json');
@@ -123,19 +127,16 @@ function acesToBack(arr) {
   return return_arr;
 }
 
-// First turn. Deal 2 cards to the dealer, and after the data is loaded, invoke dealerLoop as the callback function.
+// Dealer's first turn. Deal 2 cards to the dealer, and after the data is loaded, invoke dealerLoop as the callback function.
+// Note that the player actually goes first; code is in this order because I got that wrong at first.
 function dealerInitialTurn() {
   dealCards("dealer", 2, dealerLoop);
 }
 
-// Tell player what the dealer's first card is (only on the first time, otherwise it's annoying).
-// Have the dealer keep hitting (by calling this function again) until he reaches 17 or more; once he does,
-// see where he/she stands.
+// Make dealer's turns go slower (ie, not instantaneously) so that it feels like a card game is actually being played out;
+// do so by setting a timeout on each subsequent function call (ie, each *next* dealer turn) that delays that next turn by
+// DEALER_TURN_DELAY milliseconds; adjust this constant from the top of this file.
 function dealerLoop() {
-  // if (game.dealerFirstTurn){
-    // alert("Dealer's first card : " + game.dealer_cards[0].value + " of " + game.dealer_cards[0].suit);
-    // game.dealerFirstTurn = false;
-  // }
   if (game.dealertotal < 17) {
     setTimeout(function() {dealCards("dealer", 1, dealerLoop)}, DEALER_TURN_DELAY);
   } else {
@@ -143,32 +144,47 @@ function dealerLoop() {
   }
 }
 
-// turn the card array into something we can display (by during each card object into a string including its value and suit).
-// Then display the appropriate message.
 function make$P(string) {
   return ($("<p>" + string + "</p>").addClass("animated fadeIn"));
 }
 
 function dealerTurnResult() {
-  var dealer_hand = game.dealer_cards.map(function(card) {
-    return " " + card.value + " of " + card.suit;
-  })
-  if (game.dealertotal === 21) {
-    // alert("Dealer's hand: " + dealer_hand + "\n\nBlackjack! Dealer wins!");
-    flipDealerCards()
-    $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash")).append(make$P(" Dealer wins!").addClass("lose"))
+  if (game.dealertotal === 21 && game.dealer_cards.length === 2 && game.playerblackjack === false) {
+    //flipDealerCards();
+    $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash"));
+    setTimeout(function(){
+      $MSGAREA.append(make$P(" Dealer wins!").addClass("lose"))
+    }, MSG_STAGGER);
+    gameIsOverSoFlipAllCards();
     appendNewGameButton();
-    // newGamePrompt();
+  }
+  else if (game.dealertotal === 21 && game.dealer_cards.length === 2 && game.playerblackjack === true) {
+    //flipDealerCards();
+    $MSGAREA.append(make$P("Double-blackjack!").removeClass("fadeIn").addClass("flash"));
+    setTimeout(function(){
+      $MSGAREA.append(make$P("Push!"));
+    }, MSG_STAGGER);
+    gameIsOverSoFlipAllCards();
+    appendNewGameButton();
+  }
+  else if (game.playerblackjack === true) {
+    //flipDealerCards();
+    $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash"));
+    setTimeout(function(){
+      $MSGAREA.append(make$P(" You win!").addClass("win"));
+    }, MSG_STAGGER);
+    gameIsOverSoFlipAllCards();
+    appendNewGameButton();
   }
   else if (game.dealertotal > 21) {
-    // alert("Dealer's hand: " + dealer_hand + "\n\nDealer busts! So you win!");
-    flipDealerCards()
-    $MSGAREA.append(make$P("Dealer busts!")).append(make$P(" You win!").addClass("win"))
+    //flipDealerCards();
+    $MSGAREA.append(make$P("Dealer busts!"))
+    setTimeout(function() {
+      $MSGAREA.append(make$P(" You win!").addClass("win"));
+    }, MSG_STAGGER);
+    gameIsOverSoFlipAllCards();
     appendNewGameButton();
-    // ---> flip the dealer's cards over now <---
-    // newGamePrompt();
   } else {
-    // alert("player's turn")
     finalReckoning();
   }
 }
@@ -179,72 +195,69 @@ function playerInitialTurn() {
 }
 
 function playerLoop() {
-  // var player_hand = game.player_cards.map(function(card) {
-  //   return " " + card.value + " of " + card.suit;
-  // })
-  // alert("Your hand: " + player_hand);
+  game.playerturn += 1;
   flipPlayerCards();
-  if (game.playertotal === 21) {
-    // alert("blackjack! You win!");
-    // newGamePrompt();
-    $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash")).append(make$P(" You win!").addClass("win"));
-    appendNewGameButton();
-  } else if (game.playertotal > 21) {
-    // alert("You busted! You lose!");
-    // newGamePrompt();
-    $MSGAREA.append(make$P("You busted!").removeClass("fadeIn").addClass("swing")).append(make$P(" You lose!").addClass("lose"));
-    appendNewGameButton();
+  if (game.playertotal === 21 && game.playerturn === 1) {
+    game.playerblackjack = true;
+    //$MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash")).append(make$P(" You win!").addClass("win"));
+    //appendNewGameButton();
+    appendControlsAndWait();
   } else {
-      appendControlsAndWait();
-//    var choice = confirm("Your total: " + game.playertotal + ". Hit?");
-//    if (choice === true) {
-//      dealCards("player", 1, playerLoop);
-//    } else {
-//      finalReckoning();
-//    }
-  }
-}
-// if the neither the dealer nor the player won outright or busted during their respective turns, we need to compare the totals
-// to see who won.
-function finalReckoning() {
-  // alert("Dealer's total: " + game.dealertotal + "\n\nYour total: " + game.playertotal);
-  $MSGAREA.append(make$P("Your total: " + game.playertotal + "&nbsp; &nbsp; Dealer's total: " + game.dealertotal));
-  if (game.playertotal > game.dealertotal) {
-    // alert("You win!");
-    flipDealerCards()
-    $MSGAREA.append(make$P("You win!").addClass("win"));
-    appendNewGameButton();
-  } else if (game.playertotal === game.dealertotal) {
-    // alert("OMFG it's a tie!");
-    flipDealerCards()
-    $MSGAREA.append(make$P("Tie! You lose!").addClass("lose"));
-    appendNewGameButton();
-  } else {
-    // alert("You lose!");
-    flipDealerCards()
-    $MSGAREA.append(make$P("You lose!").addClass("lose"));
-    appendNewGameButton();
+  // } else if (game.playertotal > 21) {
+  //   $PLAYERCONTROLS.empty();
+  //   gameIsOverSoFlipAllCards();
+  //   $MSGAREA.append(make$P("You busted!").removeClass("fadeIn").addClass("swing")).append(make$P(" You lose!").addClass("lose"));
+  //   appendNewGameButton();
+  // } else {
+    appendControlsAndWait();
   }
 }
 
-function newGamePrompt() {
-  var choice = confirm("New game?");
-  if (choice === true) {
-    startGame();
+function playerBusts() {
+  $PLAYERCONTROLS.empty();
+  $MSGAREA.append(make$P("You busted!").removeClass("fadeIn").addClass("swing"));
+  setTimeout(function(){
+    $MSGAREA.append(make$P(" You lose!").addClass("lose"));
+  }, MSG_STAGGER);
+  appendNewGameButton();
+}
+
+// if the neither the dealer nor the player won outright or busted during their respective turns, we need to compare the totals
+// to see who won.
+function finalReckoning() {
+  $MSGAREA.append(make$P("Your total: " + game.playertotal).addClass("nomargin"));
+  
+  setTimeout(function(){$MSGAREA.append(make$P("Dealer's total: " + game.dealertotal).addClass("nomargin"))}, MSG_STAGGER);
+  //$MSGAREA.append(make$P("&nbsp; &nbsp; Dealer's total: " + game.dealertotal).addClass("inline").addClass("hidden"));
+  //setTimeout(function(){$(".msg-area p:last-child").removeClass("hidden");}, MSG_STAGGER);
+  if (game.playertotal > game.dealertotal) {
+    //flipDealerCards()
+    setTimeout(function() {$MSGAREA.append(make$P("You win!").addClass("win").addClass("nomargin"));}, 2*MSG_STAGGER);
+    appendNewGameButton();
+    gameIsOverSoFlipAllCards();
+  } else if (game.playertotal === game.dealertotal) {
+    //flipDealerCards()
+    setTimeout(function(){$MSGAREA.append(make$P("Push!").addClass("nomargin"));}, 2*MSG_STAGGER);
+    gameIsOverSoFlipAllCards();
+    appendNewGameButton();
+  } else {
+    //flipDealerCards()
+    setTimeout(function(){$MSGAREA.append(make$P("You lose!").addClass("lose").addClass("nomargin"));}, 2*MSG_STAGGER);
+    gameIsOverSoFlipAllCards();
+    appendNewGameButton();
   }
 }
 
 function insertPlayerCards(card_arr) {
   card_arr.forEach(function(card_obj) {
     var $card = generateBack$IMG(card_obj);
-    //var $card = generateFront$IMG(card_obj);
     $PLAYERHAND.append($card);
   })
 }
 
 function generateFront$IMG(card_obj) {
   if (card_obj.value === "ACE" && card_obj.suit === "DIAMONDS"){
-    card_obj.image = "/images/AceOfDiamonds.png";
+    card_obj.image = "images/AceOfDiamonds.png";
   }
   var $card = $("<img src='" + card_obj.image + "'>");
   return $card;
@@ -252,7 +265,7 @@ function generateFront$IMG(card_obj) {
 
 function generateBack$IMG(card_obj) {
   if (card_obj.value === "ACE" && card_obj.suit === "DIAMONDS"){
-    card_obj.image = "/images/AceOfDiamonds.png";
+    card_obj.image = "images/AceOfDiamonds.png";
   }
   var $card = $("<img src='" + CARD_BACK_URL + "' front_url = '" + card_obj.image + "'>");
   return $card;
@@ -270,24 +283,15 @@ function insertDealerCards(card_arr) {
   })
 }
 
-function appendTotal(whom) {
-  var total = whom === "player" ?
-    game.playertotal:
-    game.dealertotal;
-  var $msg_area = whom === "player" ?
-    $PLAYERMSG:
-    $DEALERMSG;
-  var $total = $("<p>Total: " + total + "</p>");
-  $msg_area.empty();
-  $msg_area.append($total);
-}
-
 // append controls and await player decision
 function appendControlsAndWait() {
   $PLAYERCONTROLS.empty();
-  var $hit = $("<button class='hit-btn'>Hit</button>");
+  if (game.playertotal !== 21) {
+    var $hit = $("<button class='hit-btn'>Hit</button>");
+    $PLAYERCONTROLS.append($hit);
+  }
   var $stick = $("<button class='stick-btn'>Stand</button>");
-  $PLAYERCONTROLS.append($hit).append($stick);
+  $PLAYERCONTROLS.append($stick);
 }
 
 function appendNewGameButton() {
@@ -298,30 +302,72 @@ function appendNewGameButton() {
 
 function flipDealerCards() {
   var img_arr = [].slice.call(document.querySelectorAll(".dealer-hand img"));
-  var i = 0;
+  var i = 1;
   var length = img_arr.length;
   function delayedFlip() {
+
+    // This code to have all of dealer's cards flip at once upon a game over.
+
+    // img_arr.forEach(function(img) {
+    //   if (img.getAttribute("front_url")) {
+    //     img.src = img.getAttribute("front_url");
+    //   }
+    // })
+
+    // uncomment below to make the dealer's cards all flip in a cascade
+    // instead of all at once when the game ends (uncomment the above part too)
+
     if (i < length) {
       if (img_arr[i].getAttribute("front_url")) {
         img_arr[i].src = img_arr[i].getAttribute("front_url");
       }
       i += 1;
-      setTimeout(function(){delayedFlip()}, CASCADE_FLIP_TIME);
+      setTimeout(function(){delayedFlip()}, DEALER_CASCADE_FLIP_TIME);
     }
   }
-  delayedFlip();
+  setTimeout(function(){delayedFlip();}, DEALER_CASCADE_FLIP_TIME);
 }
 
 function flipPlayerCards() {
+  // if the player busts, don't want to spend any time waiting
+  // to flip the card that led to the bust
   var img_arr = [].slice.call(document.querySelectorAll(".player-hand img"));
   var i = 0;
   var length = img_arr.length;
   function delayedFlip() {
     if (i < length) {
-        img_arr[i].src = img_arr[i].getAttribute("front_url");
+      if (img_arr[i].getAttribute("front_url") !== img_arr[i].getAttribute("src")){
+        function needThisForClosure(i){
+          var cardFlip = setTimeout(function(){
+            img_arr[i].src = img_arr[i].getAttribute("front_url");
+            if (game.playertotal > 21) {
+              playerBusts();
+              return
+            }
+            delayedFlip();
+          }, CASCADE_FLIP_TIME);
+          cardflip_events.push(cardFlip);
+        }
+        needThisForClosure(i);
+        i += 1;
+        return;
+      }
+      i += 1;
+      delayedFlip();
     }
-    i += 1;
-    setTimeout(function(){delayedFlip()}, CASCADE_FLIP_TIME);
   }
   delayedFlip();
+}
+
+function gameIsOverSoFlipAllCards() {
+  flipDealerCards();
+  cardflip_events.forEach(function(event) {
+    clearTimeout(event);
+  })
+  var img_arr = [].slice.call(document.querySelectorAll(".player-hand img"));
+  img_arr.forEach(function(card) {
+    if (card.getAttribute("front_url") && card.getAttribute("front_url") !== card.getAttribute("src")){
+      card.src = card.getAttribute("front_url");
+    }
+  })
 }
