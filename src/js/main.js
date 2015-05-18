@@ -9,7 +9,12 @@ var $DEALERMSG = $('.dealer-msg');
 var $PLAYERMSG = $('.player-msg');
 var $PLAYERWRAPPER = $('.player-wrapper');
 var $MSGAREA = $('.msg-area')
+var clicksOn = false;
+var message_events = [];
 var cardflip_events = [];
+var event_array = [];
+
+// time between messages written to the "board" when the game concludes.
 var MSG_STAGGER = 600;
 
 // time between dealer's card flips upon a game over.
@@ -24,19 +29,6 @@ var DEALER_TURN_DELAY = 1500;
 // (which is currently flipped after the dealer's *second* card is shown.
 var CASCADE_FLIP_TIME = 400;
 
-$PLAYERWRAPPER.on('click', '.hit-btn', function(event) {
-  event.preventDefault();
-  dealCards("player", 1, playerLoop);
-}).on('click', '.stick-btn', function(event) {
-  event.preventDefault();
-  $PLAYERCONTROLS.empty();
-  dealerInitialTurn();
-}).on('click', '.newgame', function(event) {
-  event.preventDefault();
-  $PLAYERCONTROLS.empty();
-  startGame();
-})
-
 startGame();
 
 // to start off the game, make a new game object (with attributes that will preserve the game's state, ie, who has what cards) and then
@@ -47,11 +39,15 @@ startGame();
 // is the dealer's initial turn, fire as part of the setDeckID function's callback function. That way it won't happen until it has the requisite data.
 function startGame() {
   game = new Game();
+  clearMessages();
   $PLAYERCONTROLS.empty();
   $DEALERHAND.empty();
   $PLAYERHAND.empty();
   $MSGAREA.empty();
   setDeckId(playerInitialTurn);
+    if (clicksOn === false) {
+    setClickHandlers();
+  }
 }
 
 // setting up a game object to preserve the game's state. This is a constructor function that is invoked above via "game = new Game();" to
@@ -64,6 +60,29 @@ function Game() {
   this.dealertotal = 0;
   this.playerturn = 0;
   this.playerblackjack = false;
+}
+
+function setClickHandlers() {
+  $PLAYERWRAPPER.on('click', '.hit-btn', function(event) {
+    event.preventDefault();
+    event_array.push(event);
+    $PLAYERWRAPPER.off('click');
+    clicksOn = false;
+    if (game.playertotal < 21) {
+      dealCards("player", 1, playerLoop);
+    }
+  }).on('click', '.stick-btn', function(event) {
+    event.preventDefault();
+    event_array.push(event);
+    $PLAYERCONTROLS.empty();
+    dealerInitialTurn();
+  }).on('click', '.newgame', function(event) {
+    event.preventDefault();
+    event_array.push(event);
+    $PLAYERCONTROLS.empty();
+    startGame();
+  })
+  clicksOn = true;
 }
 
 // set the the game object's deck_id by calling the API and looking at the deck_id attribute of the response it gives us.
@@ -85,9 +104,15 @@ function dealCards(towhom, num, callback) {
   var get_url = API_PROXY + API_URL + "/draw/" + game.deck_id + "/?count=" + num;
   $.get(get_url, function(obj){
     if (towhom.toLowerCase() === "player") {
-      game.player_cards = game.player_cards.concat(obj.cards);
-      insertPlayerCards(obj.cards);
-      updateTotal("player");
+      if (game.playertotal < 22) {
+        game.player_cards = game.player_cards.concat(obj.cards);
+        insertPlayerCards(obj.cards);
+        updateTotal("player");
+      }
+      if (game.playertotal > 21 && !($(".newgame").length)) {
+        $PLAYERWRAPPER.off('click');
+        clicksOn = false;
+      }
     }
     else {
       game.dealer_cards = game.dealer_cards.concat(obj.cards);
@@ -105,8 +130,15 @@ function dealCards(towhom, num, callback) {
 // so doing .slice() on the card arrays will let us make the acesToBack-ed arrays from copies.
 function updateTotal(whom) {
   var cards = whom.toLowerCase() === "player" ? game.player_cards.slice() : game.dealer_cards.slice();
-  var total =
-  acesToBack(cards).reduce(function(acc, card) {
+  var sum_array = acesToBack(cards);
+  var aces_amt = sum_array.reduce(function(acc, card) {
+    if (card.value === "ACE") {
+      return acc + 1;
+    }
+    else {return acc}
+  }, 0);
+
+  var total = sum_array.reduce(function(acc, card) {
     if (card.value === "KING" || card.value === "QUEEN" || card.value === "JACK") {
       return acc + 10;
     }
@@ -116,6 +148,23 @@ function updateTotal(whom) {
     }
     else {return acc + parseInt(card.value)}
   }, 0)
+
+  if (total > 21 && aces_amt > 1) {
+    var big_total = sum_array.reduce(function(acc, card) {
+      if (card.value === "KING" || card.value === "QUEEN" || card.value === "JACK") {
+        return acc + 10;
+      }
+      else if (card.value === "ACE") {
+        return acc + 11
+      }
+      else {return acc + parseInt(card.value)}
+    }, 0)
+    for (var i = 1; i <= aces_amt; i++) {
+      if (big_total - (10 * i) < 22) {
+        total = big_total - (10 * i);
+      }
+    }
+  }
   whom.toLowerCase() === "player" ? (game.playertotal = total) : (game.dealertotal = total);
 }
 
@@ -154,33 +203,33 @@ function make$P(string) {
 function dealerTurnResult() {
   if (game.dealertotal === 21 && game.dealer_cards.length === 2 && game.playerblackjack === false) {
     $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash"));
-    setTimeout(function(){
+    message_events.push(setTimeout(function(){
       $MSGAREA.append(make$P(" Dealer wins!").addClass("lose"))
-    }, MSG_STAGGER);
+    }, MSG_STAGGER));
     gameIsOverSoFlipAllCards();
     appendNewGameButton();
   }
   else if (game.dealertotal === 21 && game.dealer_cards.length === 2 && game.playerblackjack === true) {
     $MSGAREA.append(make$P("Double-blackjack!").removeClass("fadeIn").addClass("flash"));
-    setTimeout(function(){
+    message_events.push(setTimeout(function(){
       $MSGAREA.append(make$P("Push!"));
-    }, MSG_STAGGER);
+    }, MSG_STAGGER));
     gameIsOverSoFlipAllCards();
     appendNewGameButton();
   }
   else if (game.playerblackjack === true) {
     $MSGAREA.append(make$P("Blackjack!").removeClass("fadeIn").addClass("flash"));
-    setTimeout(function(){
+    message_events.push(setTimeout(function(){
       $MSGAREA.append(make$P(" You win!").addClass("win"));
-    }, MSG_STAGGER);
+    }, MSG_STAGGER));
     gameIsOverSoFlipAllCards();
     appendNewGameButton();
   }
   else if (game.dealertotal > 21) {
     $MSGAREA.append(make$P("Dealer busts!"))
-    setTimeout(function() {
+    message_events.push(setTimeout(function() {
       $MSGAREA.append(make$P(" You win!").addClass("win"));
-    }, MSG_STAGGER);
+    }, MSG_STAGGER));
     gameIsOverSoFlipAllCards();
     appendNewGameButton();
   } else {
@@ -198,17 +247,25 @@ function playerLoop() {
   if (game.playertotal === 21 && game.playerturn === 1) {
     game.playerblackjack = true;
     appendControlsAndWait();
-  } else {
+  } else if (game.playertotal < 22) {
     appendControlsAndWait();
   }
 }
 
+function clearClicks() {
+  event_array.forEach(function(event){
+    clearTimeout(event);
+  })
+}
+
 function playerBusts() {
+  clearClicks();
   $PLAYERCONTROLS.empty();
   $MSGAREA.append(make$P("You busted!").removeClass("fadeIn").addClass("swing"));
-  setTimeout(function(){
+  message_events.push(setTimeout(function(){
     $MSGAREA.append(make$P(" You lose!").addClass("lose"));
-  }, MSG_STAGGER);
+  }, MSG_STAGGER));
+  gameIsOverSoFlipAllCards();
   appendNewGameButton();
 }
 
@@ -217,17 +274,17 @@ function playerBusts() {
 function finalReckoning() {
   $MSGAREA.append(make$P("Your total: " + game.playertotal).addClass("nomargin"));
   
-  setTimeout(function(){$MSGAREA.append(make$P("Dealer's total: " + game.dealertotal).addClass("nomargin"))}, MSG_STAGGER);
+  message_events.push(setTimeout(function(){$MSGAREA.append(make$P("Dealer's total: " + game.dealertotal).addClass("nomargin"))}, MSG_STAGGER));
   if (game.playertotal > game.dealertotal) {
-    setTimeout(function() {$MSGAREA.append(make$P("You win!").addClass("win").addClass("nomargin"));}, 2*MSG_STAGGER);
+    message_events.push(setTimeout(function() {$MSGAREA.append(make$P("You win!").addClass("win").addClass("nomargin"));}, 2*MSG_STAGGER));
     appendNewGameButton();
     gameIsOverSoFlipAllCards();
   } else if (game.playertotal === game.dealertotal) {
-    setTimeout(function(){$MSGAREA.append(make$P("Push!").addClass("nomargin"));}, 2*MSG_STAGGER);
+    message_events.push(setTimeout(function(){$MSGAREA.append(make$P("Push!").addClass("nomargin"));}, 2*MSG_STAGGER));
     gameIsOverSoFlipAllCards();
     appendNewGameButton();
   } else {
-    setTimeout(function(){$MSGAREA.append(make$P("You lose!").addClass("lose").addClass("nomargin"));}, 2*MSG_STAGGER);
+    message_events.push(setTimeout(function(){$MSGAREA.append(make$P("You lose!").addClass("lose").addClass("nomargin"));}, 2*MSG_STAGGER));
     gameIsOverSoFlipAllCards();
     appendNewGameButton();
   }
@@ -281,6 +338,9 @@ function appendNewGameButton() {
   $PLAYERCONTROLS.empty();
   var $newgame = $("<button class='newgame'>New Game</button>");
   $PLAYERCONTROLS.append($newgame);
+  if (clicksOn === false) {
+    setClickHandlers();
+  }
 }
 
 function flipDealerCards() {
@@ -328,9 +388,12 @@ function flipPlayerCards() {
         function needThisForClosure(i){
           var cardFlip = setTimeout(function(){
             img_arr[i].src = img_arr[i].getAttribute("front_url");
-            if (game.playertotal > 21) {
+            if (game.playertotal > 21 && $MSGAREA.is(':empty')) {
               playerBusts();
               return
+            }
+            if (clicksOn === false && game.playertotal < 22) {
+              setClickHandlers();
             }
             delayedFlip();
           }, CASCADE_FLIP_TIME);
@@ -357,5 +420,11 @@ function gameIsOverSoFlipAllCards() {
     if (card.getAttribute("front_url") && card.getAttribute("front_url") !== card.getAttribute("src")){
       card.src = card.getAttribute("front_url");
     }
+  })
+}
+
+function clearMessages() {
+  message_events.forEach(function(event) {
+    clearTimeout(event);
   })
 }

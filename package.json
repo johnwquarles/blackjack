@@ -9,8 +9,7 @@
     "build": "./build.sh",
     "start": "npm run build; npm run server",
     "deploy": "npm run build; ./deploy.sh",
-    "watch": "npm run build; ./watch.sh",
-    "watchnserve": "./watch.sh; npm run server"
+    "watch": "./watch.sh"
   },
   "repository": {
     "type": "git",
