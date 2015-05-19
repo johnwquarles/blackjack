@@ -13,6 +13,10 @@ filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', end
   transform:rotateX(25deg);
 }
 
+.header-container img:first-child {
+  margin-right: -28px;
+}
+
 .spacer {
   width: 1px;
   height: 65px;
