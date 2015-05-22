@@ -14,14 +14,9 @@
     "test",
     "tests"
   ],
-  "devDependencies": {
-    "jquery": "~2.1.4",
-    "lodash": "~3.8.0",
-    "bootstrap": "~3.3.4"
-  },
   "dependencies": {
+    "bootstrap": "~3.3.4",
     "jquery": "~2.1.4",
-    "lodash": "~3.8.0",
-    "bootstrap": "~3.3.4"
+    "lodash": "~3.9.0"
   }
 }

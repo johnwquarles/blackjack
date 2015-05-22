@@ -129,42 +129,27 @@ function dealCards(towhom, num, callback) {
 // card order; don't want to do that, because we want to keep the order for display purposes.
 // so doing .slice() on the card arrays will let us make the acesToBack-ed arrays from copies.
 function updateTotal(whom) {
-  var cards = whom.toLowerCase() === "player" ? game.player_cards.slice() : game.dealer_cards.slice();
-  var sum_array = acesToBack(cards);
-  var aces_amt = sum_array.reduce(function(acc, card) {
-    if (card.value === "ACE") {
-      return acc + 1;
+  var cards = whom.toLowerCase() === "player" ? game.player_cards : game.dealer_cards;
+  var sum = 0;
+  var aces_amt = 0;
+  var total;
+  cards.forEach(function(card) {
+  	if (card.value === "KING" || card.value === "QUEEN" || card.value === "JACK") {
+      sum += 10;
+  	} else if (card.value === "ACE") {
+      aces_amt += 1;
+    } else {
+    	sum += parseInt(card.value);
     }
-    else {return acc}
-  }, 0);
+  })
 
-  var total = sum_array.reduce(function(acc, card) {
-    if (card.value === "KING" || card.value === "QUEEN" || card.value === "JACK") {
-      return acc + 10;
-    }
-    else if (card.value === "ACE") {
-      if (acc + 11 < 22) {return acc + 11}
-      else {return acc + 1}
-    }
-    else {return acc + parseInt(card.value)}
-  }, 0)
-
-  if (total > 21 && aces_amt > 1) {
-    var big_total = sum_array.reduce(function(acc, card) {
-      if (card.value === "KING" || card.value === "QUEEN" || card.value === "JACK") {
-        return acc + 10;
-      }
-      else if (card.value === "ACE") {
-        return acc + 11
-      }
-      else {return acc + parseInt(card.value)}
-    }, 0)
-    for (var i = 1; i <= aces_amt; i++) {
-      if (big_total - (10 * i) < 22) {
-        total = big_total - (10 * i);
-      }
-    }
+  // works because you would only ever have one ace going to 11.
+  if (sum + aces_amt + 10 < 22 && aces_amt > 0) {
+    total = sum + aces_amt + 10;
+  } else {
+  	total = sum + aces_amt;
   }
+
   whom.toLowerCase() === "player" ? (game.playertotal = total) : (game.dealertotal = total);
 }
 
